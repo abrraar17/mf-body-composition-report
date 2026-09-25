@@ -7,8 +7,6 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
 :root{ --bg:#f0f0ef; --panel:#ffffff; --ink:#15130f; --muted:#6b6a66; --line:#e2e0dc; --red:#cf1a2b; --red-dark:#8f0f1d; }
 @media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){ --bg:#17130f; --panel:#231e19; --ink:#f2efe9; --muted:#a39d92; --line:#38322b; } }
@@ -35,12 +33,12 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:'Inter',sans-ser
 .form-col{display:flex;flex-direction:column;gap:14px;}
 .panel-card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px 16px 6px;}
 .form-section h2{font-family:'Barlow Condensed',sans-serif;font-size:15px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--red);margin:0 0 10px;border-bottom:1px solid var(--line);padding-bottom:6px;}
-.field-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;}
+.field-row{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px;margin-bottom:10px;}
 .field{display:flex;flex-direction:column;gap:4px;margin-bottom:10px;}
 .field label{font-size:12px;color:var(--muted);}
 .field input{border:1px solid var(--line);background:var(--bg);color:var(--ink);border-radius:8px;padding:10px 11px;font-size:16px;font-family:inherit;}
 .field input:focus{outline:2px solid var(--red);outline-offset:1px;}
-.quad{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.quad{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px;}
 
 .actions{display:flex;flex-direction:column;gap:8px;margin:16px 0 20px;}
 .btn{border:none;border-radius:9px;padding:12px 14px;font-weight:600;font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;}
@@ -63,13 +61,17 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:'Inter',sans-ser
 
 .gap{position:absolute;left:39px;top:235px;width:952px;height:595px;}
 
-.patient-info{display:flex;align-items:center;gap:26px;margin-bottom:22px;}
-.pi-item{display:flex;align-items:center;gap:9px;}
+.patient-info{display:flex;flex-wrap:wrap;align-items:center;column-gap:26px;row-gap:10px;margin-bottom:22px;}
+.pi-row1{display:flex;align-items:center;gap:26px;min-width:0;flex:1 1 100%;}
+.pi-item{display:flex;align-items:center;gap:9px;min-width:0;}
 .pi-item .ico{width:26px;height:26px;border:1px solid #eadfe0;border-radius:6px;display:flex;align-items:center;justify-content:center;color:#cf1a2b;flex-shrink:0;}
-.pi-item .txt{display:flex;flex-direction:column;}
+.pi-item .txt{display:flex;flex-direction:column;min-width:0;}
 .pi-item .txt .k{font-size:9.5px;letter-spacing:.1em;color:#8a8880;text-transform:uppercase;}
-.pi-item .txt .v{font-family:'Inter',sans-serif;font-weight:700;font-size:17px;color:#15130f;white-space:nowrap;}
-.pi-div{width:1px;align-self:stretch;background:#e5e2dd;}
+.pi-item .txt .v{font-family:'Inter',sans-serif;font-weight:700;font-size:17px;color:#15130f;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.pi-item.pi-name{flex:0 1 auto;min-width:0;}
+.pi-item.pi-name .txt .v{max-width:440px;}
+.pi-item.pi-age{flex:0 0 auto;}
+.pi-div{width:1px;align-self:stretch;background:#e5e2dd;flex-shrink:0;}
 
 .stat-grid{display:grid;grid-template-columns:repeat(6,1fr);border:1px solid #eee;border-radius:12px;overflow:hidden;background:#fafaf8;margin-bottom:22px;}
 .stat{padding:20px 6px;border-right:1px solid #eee;text-align:center;}
@@ -94,8 +96,8 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:'Inter',sans-ser
 @media print{
   .topbar, .form-col, .mobile-actionbar{ display:none !important; }
   .app-shell{ display:block !important; padding:0 !important; max-width:none !important; }
-  .report-col{ display:block !important; justify-content:flex-start !important; }
-  .sheet-scaler{ width:1030px !important; max-width:none !important; height:auto !important; overflow:visible !important; }
+  .report-col{ display:block !important; }
+  .sheet-scaler{ width:1030px !important; max-width:none !important; height:auto !important; overflow:visible !important; margin:0 auto !important; }
   .sheet{ transform:none !important; box-shadow:none !important; }
   @page{ margin:0; }
 }
@@ -158,11 +160,9 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:'Inter',sans-ser
     </div>
 
     <div class="actions">
-      <button class="btn btn-primary" id="btn-share">📤 Share report (PDF)</button>
-      <button class="btn btn-ghost" id="btn-pdf">⬇ Download PDF</button>
-      <button class="btn btn-ghost" id="btn-print">🖨 Print</button>
+      <button class="btn btn-primary" id="btn-print">🖨 Print / Save as PDF / Share</button>
       <button class="btn btn-text" id="btn-reset">Reset form</button>
-      <div class="hint" id="pdf-hint">Loading export tools…</div>
+      <div class="hint">On iPhone: use the share icon in the print preview to save as PDF or send via WhatsApp. On a computer: choose "Save as PDF" as the printer.</div>
     </div>
   </div>
 
@@ -193,9 +193,7 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:'Inter',sans-ser
 </div>
 
 <div class="mobile-actionbar">
-  <button class="btn btn-primary" id="btn-share-m">📤 Share</button>
-  <button class="btn btn-ghost" id="btn-pdf-m">⬇ PDF</button>
-  <button class="btn btn-ghost" id="btn-print-m">🖨 Print</button>
+  <button class="btn btn-primary" id="btn-print-m2">🖨 Print / Save as PDF / Share</button>
 </div>
 
 <script>
@@ -240,10 +238,14 @@ function render(){
     ['age','Age', $('in-age').value ? $('in-age').value + ' years' : '—'],
     ['date','Date', dateStr]
   ];
-  $('patient-info').innerHTML = pi.map((p,i) => `
-    ${i>0 ? '<div class="pi-div"></div>' : ''}
-    <div class="pi-item"><div class="ico">${piIcons[p[0]]}</div><div class="txt"><span class="k">${p[1]}</span><span class="v">${p[2]}</span></div></div>
-  `).join('');
+  $('patient-info').innerHTML = `
+    <div class="pi-row1">
+      <div class="pi-item pi-name"><div class="ico">${piIcons.name}</div><div class="txt"><span class="k">Name</span><span class="v" title="${pi[0][2]}">${pi[0][2]}</span></div></div>
+      <div class="pi-div"></div>
+      <div class="pi-item pi-age"><div class="ico">${piIcons.age}</div><div class="txt"><span class="k">Age</span><span class="v">${pi[1][2]}</span></div></div>
+    </div>
+    <div class="pi-item pi-date"><div class="ico">${piIcons.date}</div><div class="txt"><span class="k">Date</span><span class="v">${pi[2][2]}</span></div></div>
+  `;
 
   const stats = [
     ['weight','Body Weight', fmt(num('in-weight'), ' kg')],
@@ -285,49 +287,6 @@ window.addEventListener('load', fitSheet);
 setTimeout(fitSheet, 50);
 document.querySelectorAll('.tab-btn').forEach(b => b.addEventListener('click', () => setTimeout(fitSheet, 50)));
 
-function patientFileName(){
-  const name = ($('in-name').value || 'patient').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'') || 'patient';
-  return `body-composition-${name}`;
-}
-
-async function buildPdfBlob(){
-  const sheet = $('sheet');
-  const scaler = document.querySelector('.sheet-scaler');
-  const bgImg = sheet.querySelector('img.bg');
-
-  // save current (possibly scaled-down-for-mobile) state
-  const prevTransform = sheet.style.transform;
-  const prevScalerHeight = scaler.style.height;
-  const prevScalerOverflow = scaler.style.overflow;
-  const prevScalerMaxWidth = scaler.style.maxWidth;
-
-  // force full native size + no clipping for an accurate capture, regardless of on-screen zoom level
-  sheet.style.transform = 'scale(1)';
-  scaler.style.height = '1527px';
-  scaler.style.overflow = 'visible';
-  scaler.style.maxWidth = 'none';
-
-  if(bgImg && bgImg.decode){ try{ await bgImg.decode(); }catch(e){} }
-  await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
-
-  let canvas;
-  try{
-    canvas = await html2canvas(sheet, {scale:1.5, backgroundColor:'#ffffff', width:1030, height:1527, useCORS:true});
-  } finally {
-    sheet.style.transform = prevTransform;
-    scaler.style.height = prevScalerHeight;
-    scaler.style.overflow = prevScalerOverflow;
-    scaler.style.maxWidth = prevScalerMaxWidth;
-    fitSheet();
-  }
-
-  const imgData = canvas.toDataURL('image/png');
-  const { jsPDF } = window.jspdf;
-  const pdf = new jsPDF({ orientation:'p', unit:'px', format:[canvas.width, canvas.height] });
-  pdf.addImage(imgData, 'PNG', 0, 0, canvas.width, canvas.height);
-  return pdf;
-}
-
 function doPrint(){ window.print(); }
 
 function doReset(){
@@ -336,61 +295,9 @@ function doReset(){
   render();
 }
 
-async function withBusy(btn, busyLabel, fn){
-  const original = btn.textContent;
-  btn.disabled = true;
-  btn.textContent = busyLabel;
-  try{ await fn(); }
-  catch(e){ console.error(e); alert('Could not generate the report: ' + (e && e.message ? e.message : e) + '\n\nTry Download PDF instead, or use Print and choose Save to PDF / Share from the print preview.'); }
-  finally{ btn.textContent = original; btn.disabled = false; }
-}
-
-async function doDownloadPdf(btn){
-  await withBusy(btn, 'Rendering…', async () => {
-    const pdf = await buildPdfBlob();
-    pdf.save(patientFileName() + '.pdf');
-  });
-}
-
-async function doShare(btn){
-  await withBusy(btn, 'Preparing…', async () => {
-    const pdf = await buildPdfBlob();
-    const blob = pdf.output('blob');
-    const file = new File([blob], patientFileName() + '.pdf', {type:'application/pdf'});
-    if(navigator.canShare && navigator.canShare({files:[file]})){
-      try{
-        await navigator.share({ files:[file], title:'Body Composition Report', text:`Body Composition Report — ${$('in-name').value || 'Patient'}` });
-      }catch(shareErr){
-        if(shareErr && shareErr.name === 'AbortError') return; // user cancelled the share sheet — not an error
-        throw shareErr;
-      }
-    } else {
-      pdf.save(patientFileName() + '.pdf');
-      alert("Direct sharing isn't supported on this browser — the PDF has been downloaded instead. Attach it to WhatsApp manually.");
-    }
-  });
-}
-
 $('btn-print').onclick = doPrint;
-$('btn-print-m').onclick = doPrint;
+$('btn-print-m2').onclick = doPrint;
 $('btn-reset').onclick = doReset;
-$('btn-pdf').onclick = () => doDownloadPdf($('btn-pdf'));
-$('btn-pdf-m').onclick = () => doDownloadPdf($('btn-pdf-m'));
-$('btn-share').onclick = () => doShare($('btn-share'));
-$('btn-share-m').onclick = () => doShare($('btn-share-m'));
-
-(function checkTools(){
-  let tries = 0;
-  const iv = setInterval(() => {
-    tries++;
-    const ok = !!(window.html2canvas && window.jspdf);
-    if(ok || tries > 40){
-      clearInterval(iv);
-      $('pdf-hint').textContent = ok ? 'PDF export ready.' : 'PDF tools failed to load — check your connection and refresh.';
-      [$('btn-pdf'),$('btn-pdf-m'),$('btn-share'),$('btn-share-m')].forEach(b => b.disabled = !ok);
-    }
-  }, 150);
-})();
 </script>
 </body>
 </html>
