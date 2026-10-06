@@ -93,12 +93,18 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:'Inter',sans-ser
 .bar-fill{height:100%;background:#cf1a2b;border-radius:5px;}
 
 @media print{
+  *{ -webkit-print-color-adjust:exact !important; print-color-adjust:exact !important; color-adjust:exact !important; }
   .topbar, .form-col, .mobile-actionbar{ display:none !important; }
   .app-shell{ display:block !important; padding:0 !important; max-width:none !important; }
   .report-col{ display:block !important; }
-  .sheet-scaler{ width:1030px !important; max-width:none !important; height:auto !important; overflow:visible !important; margin:0 auto !important; }
-  .sheet{ transform:none !important; box-shadow:none !important; }
-  @page{ margin:0; }
+  /* Fixed physical size instead of relying on each browser/device's own "fit to page" behavior,
+     which is inconsistent (iOS offers a manual scale slider, Android's PDF export doesn't).
+     Sized to safely fit within US Letter (279.4mm, the shorter of the two common paper sizes)
+     with margin for printer unprintable-area defaults, so it's never clipped on ANY device,
+     while @page:A4 below is still declared as the preferred size where browsers honor it. */
+  .sheet-scaler{ width:178.75mm !important; height:265mm !important; max-width:none !important; overflow:hidden !important; margin:0 auto !important; }
+  .sheet{ transform:scale(0.6559) !important; transform-origin:top left !important; box-shadow:none !important; }
+  @page{ size:A4; margin:0; }
 }
 </style>
 </head>
