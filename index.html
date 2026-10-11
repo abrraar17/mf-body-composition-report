@@ -104,8 +104,8 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:'Inter',sans-ser
      Sized to safely fit within US Letter (279.4mm, the shorter of the two common paper sizes)
      with margin for printer unprintable-area defaults, so it's never clipped on ANY device,
      while @page:A4 below is still declared as the preferred size where browsers honor it. */
-  .sheet-scaler{ width:178.75mm !important; height:265mm !important; max-width:none !important; overflow:hidden !important; margin:0 auto !important; }
-  .sheet{ transform:none !important; zoom:0.6559 !important; box-shadow:none !important; }
+  .sheet-scaler{ width:148.4mm !important; height:220mm !important; max-width:none !important; overflow:hidden !important; margin:0 auto !important; }
+  .sheet{ transform:none !important; zoom:0.5445 !important; box-shadow:none !important; }
   @page{ size:A4; margin:0; }
 }
 </style>
@@ -323,18 +323,28 @@ function patientFileName(){
 }
 
 async function buildPdfBlob(){
+  const appShell = $('app-shell');
   const sheet = $('sheet');
   const scaler = document.querySelector('.sheet-scaler');
   const bgImg = sheet.querySelector('img.bg');
 
+  // On mobile, the Edit tab sets .report-col to display:none so it doesn't clutter the form view.
+  // Capturing a display:none element (or a descendant of one) produces a blank canvas, which is
+  // exactly what happened on Android - so force the report view visible for the capture regardless
+  // of which tab the user is currently on, then restore whichever tab they were actually on.
+  const prevView = appShell.dataset.view;
+  appShell.dataset.view = 'report';
+
   // save current (possibly scaled-down-for-screen) state
   const prevTransform = sheet.style.transform;
+  const prevScalerWidth = scaler.style.width;
   const prevScalerHeight = scaler.style.height;
   const prevScalerOverflow = scaler.style.overflow;
   const prevScalerMaxWidth = scaler.style.maxWidth;
 
   // force full native size + no clipping for an accurate capture, regardless of on-screen zoom level
   sheet.style.transform = 'scale(1)';
+  scaler.style.width = '1030px';
   scaler.style.height = '1527px';
   scaler.style.overflow = 'visible';
   scaler.style.maxWidth = 'none';
@@ -347,9 +357,11 @@ async function buildPdfBlob(){
     canvas = await html2canvas(sheet, {scale:1.5, backgroundColor:'#ffffff', width:1030, height:1527, useCORS:true});
   } finally {
     sheet.style.transform = prevTransform;
+    scaler.style.width = prevScalerWidth;
     scaler.style.height = prevScalerHeight;
     scaler.style.overflow = prevScalerOverflow;
     scaler.style.maxWidth = prevScalerMaxWidth;
+    appShell.dataset.view = prevView;
     fitSheet();
   }
 
