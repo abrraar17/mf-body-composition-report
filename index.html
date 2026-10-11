@@ -7,6 +7,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
 :root{ --bg:#f0f0ef; --panel:#ffffff; --ink:#15130f; --muted:#6b6a66; --line:#e2e0dc; --red:#cf1a2b; --red-dark:#8f0f1d; }
 @media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){ --bg:#17130f; --panel:#231e19; --ink:#f2efe9; --muted:#a39d92; --line:#38322b; } }
@@ -27,7 +29,7 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:'Inter',sans-ser
   .tabs{display:flex;}
   .app-shell[data-view="form"] .report-col{display:none;}
   .app-shell[data-view="report"] .form-col{display:none;}
-  .mobile-actionbar{display:flex;}
+  .mobile-actionbar{display:flex !important;}
 }
 
 .form-col{display:flex;flex-direction:column;gap:14px;}
@@ -103,7 +105,7 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:'Inter',sans-ser
      with margin for printer unprintable-area defaults, so it's never clipped on ANY device,
      while @page:A4 below is still declared as the preferred size where browsers honor it. */
   .sheet-scaler{ width:178.75mm !important; height:265mm !important; max-width:none !important; overflow:hidden !important; margin:0 auto !important; }
-  .sheet{ transform:scale(0.6559) !important; transform-origin:top left !important; box-shadow:none !important; }
+  .sheet{ transform:none !important; zoom:0.6559 !important; box-shadow:none !important; }
   @page{ size:A4; margin:0; }
 }
 </style>
@@ -175,9 +177,10 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:'Inter',sans-ser
     </div>
 
     <div class="actions">
-      <button class="btn btn-primary" id="btn-print">🖨 Print / Save as PDF / Share</button>
+      <button class="btn btn-primary" id="btn-share">📤 Share PDF (WhatsApp etc.)</button>
+      <button class="btn btn-ghost" id="btn-print">🖨 Print / Save as PDF</button>
       <button class="btn btn-text" id="btn-reset">Reset form</button>
-      <div class="hint">On iPhone: use the share icon in the print preview to save as PDF or send via WhatsApp. On a computer: choose "Save as PDF" as the printer.</div>
+      <div class="hint" id="share-hint">On iPhone, Print's own share icon also works for this. On a computer, Share downloads the PDF for you to attach manually.</div>
     </div>
   </div>
 
@@ -208,7 +211,8 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:'Inter',sans-ser
 </div>
 
 <div class="mobile-actionbar">
-  <button class="btn btn-primary" id="btn-print-m2">🖨 Print / Save as PDF / Share</button>
+  <button class="btn btn-primary" id="btn-share-m">📤 Share PDF</button>
+  <button class="btn btn-ghost" id="btn-print-m2">🖨 Print</button>
 </div>
 
 <script>
@@ -313,9 +317,101 @@ function doReset(){
   render();
 }
 
+function patientFileName(){
+  const name = ($('in-name').value || 'patient').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'') || 'patient';
+  return `body-composition-${name}`;
+}
+
+async function buildPdfBlob(){
+  const sheet = $('sheet');
+  const scaler = document.querySelector('.sheet-scaler');
+  const bgImg = sheet.querySelector('img.bg');
+
+  // save current (possibly scaled-down-for-screen) state
+  const prevTransform = sheet.style.transform;
+  const prevScalerHeight = scaler.style.height;
+  const prevScalerOverflow = scaler.style.overflow;
+  const prevScalerMaxWidth = scaler.style.maxWidth;
+
+  // force full native size + no clipping for an accurate capture, regardless of on-screen zoom level
+  sheet.style.transform = 'scale(1)';
+  scaler.style.height = '1527px';
+  scaler.style.overflow = 'visible';
+  scaler.style.maxWidth = 'none';
+
+  if(bgImg && bgImg.decode){ try{ await bgImg.decode(); }catch(e){} }
+  await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+
+  let canvas;
+  try{
+    canvas = await html2canvas(sheet, {scale:1.5, backgroundColor:'#ffffff', width:1030, height:1527, useCORS:true});
+  } finally {
+    sheet.style.transform = prevTransform;
+    scaler.style.height = prevScalerHeight;
+    scaler.style.overflow = prevScalerOverflow;
+    scaler.style.maxWidth = prevScalerMaxWidth;
+    fitSheet();
+  }
+
+  const imgData = canvas.toDataURL('image/png');
+  const { jsPDF } = window.jspdf;
+  const pdf = new jsPDF({ orientation:'p', unit:'px', format:[canvas.width, canvas.height] });
+  pdf.addImage(imgData, 'PNG', 0, 0, canvas.width, canvas.height);
+  return pdf;
+}
+
+async function withBusy(btn, busyLabel, fn){
+  const original = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = busyLabel;
+  try{ await fn(); }
+  catch(e){
+    console.error(e);
+    alert('Could not share the PDF: ' + (e && e.message ? e.message : e) + '\n\nOn iPhone, try the Print button instead and use its built-in share icon.');
+  }
+  finally{ btn.textContent = original; btn.disabled = false; }
+}
+
+async function doShare(btn){
+  await withBusy(btn, 'Preparing…', async () => {
+    const pdf = await buildPdfBlob();
+    const filename = patientFileName() + '.pdf';
+    const blob = pdf.output('blob');
+    const file = new File([blob], filename, {type:'application/pdf'});
+    if(navigator.canShare && navigator.canShare({files:[file]})){
+      try{
+        await navigator.share({ files:[file], title:'Body Composition Report', text:`Body Composition Report — ${$('in-name').value || 'Patient'}` });
+      }catch(shareErr){
+        if(shareErr && shareErr.name === 'AbortError') return; // user cancelled the share sheet — not an error
+        throw shareErr;
+      }
+    } else {
+      pdf.save(filename);
+      alert("Direct sharing isn't supported on this browser — the PDF has been downloaded instead. Attach it to WhatsApp manually.");
+    }
+  });
+}
+
 $('btn-print').onclick = doPrint;
 $('btn-print-m2').onclick = doPrint;
 $('btn-reset').onclick = doReset;
+$('btn-share').onclick = () => doShare($('btn-share'));
+$('btn-share-m').onclick = () => doShare($('btn-share-m'));
+
+(function checkShareTools(){
+  let tries = 0;
+  const iv = setInterval(() => {
+    tries++;
+    const ok = !!(window.html2canvas && window.jspdf);
+    if(ok || tries > 40){
+      clearInterval(iv);
+      if(!ok){
+        [$('btn-share'),$('btn-share-m')].forEach(b => b.disabled = true);
+        $('share-hint').textContent = 'PDF sharing tools failed to load — check your connection and refresh, or use Print instead.';
+      }
+    }
+  }, 150);
+})();
 </script>
 </body>
 </html>
