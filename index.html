@@ -354,7 +354,7 @@ async function buildPdfBlob(){
 
   let canvas;
   try{
-    canvas = await html2canvas(sheet, {scale:1.5, backgroundColor:'#ffffff', width:1030, height:1527, useCORS:true});
+    canvas = await html2canvas(sheet, {scale:1.5, backgroundColor:'#ffffff', width:1030, height:1527, windowWidth:1400, windowHeight:1600, useCORS:true});
   } finally {
     sheet.style.transform = prevTransform;
     scaler.style.width = prevScalerWidth;
